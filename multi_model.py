@@ -193,3 +193,22 @@ async def handle_chat(request: web.Request) -> web.Response:
         async with session.post(target_url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=120)) as resp:
             response_body = await resp.read()
             return web.Response(body=response_body, status=resp.status, content_type="application/json")
+
+
+# ── Gateway Hook Registration ──────────────────────────
+
+def register(app_ref, gateway_ref):
+    """Register /v1/models and /v1/chat/completions on Hermes Gateway."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    async def v1_models(request):
+        models = discover_models()
+        return web.json_response({"object": "list", "data": models})
+
+    async def v1_chat(request):
+        return await handle_chat(request)
+
+    app_ref.router.add_get("/v1/models", v1_models)
+    app_ref.router.add_post("/v1/chat/completions", v1_chat)
+    logger.info("Multi-Model Router: /v1/models + /v1/chat/completions registered")
