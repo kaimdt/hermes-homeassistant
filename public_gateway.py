@@ -192,6 +192,10 @@ document.getElementById('time').textContent='Updated: '+new Date().toLocaleTimeS
         content_len = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_len) if content_len else b""
         
+        # OpenAI-compatible /v1/chat/completions
+        if self.path == "/v1/chat/completions":
+            return self._proxy(f"{API_SERVER}/v1/chat/completions", body.decode(), "POST")
+        
         if self.path.startswith("/api/chat/") or self.path.startswith("/api/status"):
             if not self._require_key():
                 return self._send_json({"error": "Invalid or missing API key"}, 401)
