@@ -96,6 +96,19 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
         if path == "/health":
             return self._send_json({"status": "ok", "service": "hermes-public-gw", "port": PORT})
         
+        # Models list — no auth (public)
+        if path == "/api/models":
+            models = [
+                {"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"deepseek"},
+                {"id":"deepseek-v4-flash","name":"DeepSeek V4 Flash","provider":"deepseek"},
+                {"id":"claude-sonnet-4","name":"Claude Sonnet 4","provider":"anthropic"},
+                {"id":"gpt-4o","name":"GPT-4o","provider":"openai"},
+                {"id":"gpt-4o-mini","name":"GPT-4o Mini","provider":"openai"},
+                {"id":"gemini-2.5-pro","name":"Gemini 2.5 Pro","provider":"google"},
+                {"id":"llama-4-maverick","name":"Llama 4 Maverick","provider":"meta"},
+            ]
+            return self._send_json({"models": models})
+        
         # Chat HTML
         if path in ("/chat", "/chat/"):
             chat_html = HOME / ".hermes" / "plugins" / "hermes-homeassistant" / "ha_chat.html"
