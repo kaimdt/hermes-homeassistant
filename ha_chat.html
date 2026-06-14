@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hermes Chat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#041c1c;--surface:rgba(255,230,203,.03);--border:rgba(255,230,203,.08);
+  --text:#ffe6cb;--text2:rgba(255,230,203,.5);--text3:rgba(255,230,203,.25);
+  --accent:#a78bfa;--user-bg:rgba(167,139,250,.1);--assistant-bg:rgba(255,230,203,.03);
+  --green:rgba(74,222,128,.7);--red:rgba(239,68,68,.7);
+}
+body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.header{flex-shrink:0;display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:10px;background:var(--bg)}
+.header .logo{font-size:16px;font-weight:700;color:var(--accent)}.header .sub{font-size:10px;color:var(--text3)}
+.chats-panel{width:260px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.chats-list{flex:1;overflow-y:auto;padding:8px}
+.chat-item{padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:2px;transition:all .12s}
+.chat-item:hover{background:var(--surface)}.chat-item.active{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.15)}
+.chat-item .title{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item .meta{font-size:9px;color:var(--text3);margin-top:2px}
+.chat-item.active .title{color:var(--text)}
+.new-chat{padding:8px 10px;margin:4px 8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font:inherit;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
+.new-chat:hover{opacity:.9}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
+.msg{max-width:85%;padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.6;animation:slideIn .2s ease-out}
+.msg.user{align-self:flex-end;background:var(--user-bg);border:1px solid rgba(167,139,250,.1)}
+.msg.assistant{align-self:flex-start;background:var(--assistant-bg);border:1px solid var(--border)}
+.msg .role{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.msg .content{white-space:pre-wrap;word-break:break-word}
+.msg .time{font-size:9px;color:var(--text3);margin-top:6px}
+.msg .content code{font-size:11px;background:rgba(255,230,203,.06);padding:1px 4px;border-radius:3px}
+.msg .content pre{font-size:11px;background:rgba(255,230,203,.04);padding:10px;border-radius:6px;overflow-x:auto;margin:8px 0}
+.input-area{flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end}
+.input-area textarea{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font:inherit;font-size:13px;outline:none;resize:none;min-height:44px;max-height:200px;line-height:1.5}
+.input-area textarea:focus{border-color:rgba(167,139,250,.3);box-shadow:0 0 0 2px rgba(167,139,250,.08)}
+.input-area button{padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font:inherit;font-size:12px;font-weight:600;white-space:nowrap;transition:opacity .12s}
+.input-area button:hover{opacity:.9}.input-area button:disabled{opacity:.4;cursor:default}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:8px}.empty h2{font-size:20px;font-weight:700;color:var(--text2)}.empty p{font-size:12px}
+.typing{display:flex;gap:4px;padding:12px 16px;align-self:flex-start}.typing span{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:bounce 1.4s infinite;opacity:.4}.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{opacity:.4;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.layout{flex:1;display:flex;overflow:hidden}
+.delete-btn{float:right;font-size:14px;color:var(--red);cursor:pointer;opacity:.3;background:none;border:none;padding:2px}.delete-btn:hover{opacity:1}
+@media(max-width:600px){.chats-panel{display:none}.chats-panel.mobile-open{display:flex;position:absolute;inset:0;z-index:100;background:var(--bg)}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">Hermes Chat</div>
+  <div class="sub">Persistent · Multi-Chat · HA Connected</div>
+</div>
+<div class="layout">
+  <div class="chats-panel" id="chats-panel">
+    <button class="new-chat" onclick="newChat()">+ New Chat</button>
+    <div class="chats-list" id="chats-list"></div>
+  </div>
+  <div class="main" id="main">
+    <div class="empty" id="empty-state">
+      <h2>Hermes Chat</h2>
+      <p>Starte einen neuen Chat oder wähle links einen aus</p>
+    </div>
+    <div class="messages" id="messages" style="display:none"></div>
+    <div class="typing" id="typing" style="display:none">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="input-area" id="input-area" style="display:none">
+      <textarea id="input" placeholder="Message Hermes..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+      <button onclick="send()" id="send-btn">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BP = window.location.origin + '/api/plugins/github-bot/ha/chat';
+let currentChatId = null;
+let haUser = 'default';
+
+async function api(path, opts={}) {
+  const r = await fetch(BP + path, {
+    headers: {'Content-Type':'application/json','X-HA-User':haUser},
+    ...opts
+  });
+  return r.json();
+}
+
+async function loadChats() {
+  const d = await api('/list');
+  const el = document.getElementById('chats-list');
+  el.innerHTML = d.chats?.map(c => `
+    <div class="chat-item${c.id===currentChatId?' active':''}" onclick="selectChat(${c.id})">
+      <div class="title">${esc(c.title)}</div>
+      <div class="meta">${c.updated?.slice(0,10)} · ${c.model}</div>
+      <button class="delete-btn" onclick="event.stopPropagation();deleteChat(${c.id})">×</button>
+    </div>
+  `).join('') || '';
+}
+
+async function newChat() {
+  const d = await api('/create', {method:'POST', body:JSON.stringify({title:'New Chat'})});
+  currentChatId = d.id;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('messages').style.display = 'flex';
+  document.getElementById('input-area').style.display = 'flex';
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('input').value = '';
+  document.getElementById('input').focus();
+  loadChats();
+}
+
+async function selectChat(id) {
+  currentChatId = id;
+  const d = await api('/' + id + '/messages');
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('messages').style.display = 'flex';
+  document.getElementById('input-area').style.display = 'flex';
+  const el = document.getElementById('messages');
+  el.innerHTML = d.messages?.map(m => `
+    <div class="msg ${m.role}">
+      ${m.content.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g,'<code>$1</code>')
+        .replace(/\n/g,'<br>')}
+      <div class="time">${m.time}</div>
+    </div>
+  `).join('') || '';
+  el.scrollTop = el.scrollHeight;
+  loadChats();
+}
+
+async function send() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!currentChatId) await newChat();
+
+  // Show user message immediately
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML += `<div class="msg user"><div class="content">${esc(text)}</div></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+  input.value = '';
+  document.getElementById('send-btn').disabled = true;
+
+  // Show typing indicator
+  document.getElementById('typing').style.display = 'flex';
+
+  try {
+    const d = await api('/' + currentChatId + '/send', {
+      method:'POST',
+      body: JSON.stringify({content:text})
+    });
+    document.getElementById('typing').style.display = 'none';
+    msgs.innerHTML += `<div class="msg assistant">${d.response.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\n/g,'<br>')}</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    document.getElementById('typing').style.display = 'none';
+    msgs.innerHTML += `<div class="msg assistant"><div class="content">Fehler: ${e.message}</div></div>`;
+  }
+  document.getElementById('send-btn').disabled = false;
+  loadChats();
+}
+
+async function deleteChat(id) {
+  if (!confirm('Chat löschen?')) return;
+  await api('/' + id, {method:'DELETE'});
+  if (currentChatId === id) { currentChatId = null; document.getElementById('messages').style.display = 'none'; document.getElementById('input-area').style.display = 'none'; document.getElementById('empty-state').style.display = 'flex'; }
+  loadChats();
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Initialize
+loadChats();
+setInterval(loadChats, 30000);  // refresh chat list every 30s
+</script>
+</body>
+</html>
