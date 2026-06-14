@@ -1,0 +1,17 @@
+send_message:
+  name: Send Message
+  description: Send a message to Hermes Chat
+  fields:
+    chat_id:
+      name: Chat ID
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 9999
+    message:
+      name: Message
+      required: true
+      selector:
+        text:
+          multiline: true

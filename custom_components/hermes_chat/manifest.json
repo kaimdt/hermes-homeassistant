@@ -1,0 +1,10 @@
+{
+  "domain": "hermes_chat",
+  "name": "Hermes Chat",
+  "version": "1.0.0",
+  "documentation": "https://github.com/kaimdt/hermes-homeassistant",
+  "requirements": [],
+  "codeowners": ["@kaimdt"],
+  "config_flow": false,
+  "iot_class": "local_polling"
+}
