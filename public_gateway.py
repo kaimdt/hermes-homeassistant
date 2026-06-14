@@ -71,6 +71,19 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
                 req.add_header("Content-Type", "application/json")
             else:
                 req = urllib.request.Request(target_url)
+            # Add Hermes API key when proxying to API server
+            if API_SERVER in target_url:
+                import os
+                api_key = os.environ.get("API_SERVER_KEY", "")
+                if not api_key:
+                    with open(os.path.expanduser("~/.hermes/.env")) as f:
+                        for line in f:
+                            if line.startswith("API_SERVER_KEY="):
+                                api_key = line.split("=", 1)[1].strip().strip('"')
+                                break
+                if api_key:
+                    req.add_header("Authorization", "Bearer " + api_key)
+            
             for header, value in self.headers.items():
                 if header.lower() not in ("host", "x-api-key", "content-type", "content-length"):
                     req.add_header(header, value)
