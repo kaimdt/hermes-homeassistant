@@ -98,15 +98,28 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
         
         # Models list — no auth (public)
         if path == "/api/models":
-            models = [
-                {"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"deepseek"},
-                {"id":"deepseek-v4-flash","name":"DeepSeek V4 Flash","provider":"deepseek"},
-                {"id":"claude-sonnet-4","name":"Claude Sonnet 4","provider":"anthropic"},
-                {"id":"gpt-4o","name":"GPT-4o","provider":"openai"},
-                {"id":"gpt-4o-mini","name":"GPT-4o Mini","provider":"openai"},
-                {"id":"gemini-2.5-pro","name":"Gemini 2.5 Pro","provider":"google"},
-                {"id":"llama-4-maverick","name":"Llama 4 Maverick","provider":"meta"},
-            ]
+            # Proxy from Hermes API server
+            try:
+                import os
+                api_key = os.environ.get("API_SERVER_KEY","")
+                req = urllib.request.Request(f"{API_SERVER}/v1/models")
+                if api_key:
+                    req.add_header("Authorization", "Bearer " + api_key)
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read())
+                    models = []
+                    raw_models = data.get("data", data.get("models", []))
+                    for m in raw_models:
+                        mid = m.get("id","")
+                        models.append({"id": mid, "name": mid, "provider": m.get("owned_by","")})
+                    if not models:
+                        # Fallback: try dashboard
+                        req2 = urllib.request.Request(f"{DASHBOARD}/api/plugins/github-bot/models")
+                        with urllib.request.urlopen(req2, timeout=10) as resp2:
+                            data2 = json.loads(resp2.read())
+                            models = data2.get("models", data2.get("data", []))
+            except Exception as e:
+                models = [{"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"deepseek"}]
             return self._send_json({"models": models})
         
         # Chat HTML

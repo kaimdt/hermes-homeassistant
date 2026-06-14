@@ -22,7 +22,7 @@ body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-s
 .new-chat{padding:8px 10px;margin:4px 8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font:inherit;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}.new-chat:hover{opacity:.9}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .chat-header{display:none;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;gap:8px;flex-shrink:0}
-.chat-header .chat-title{font-size:13px;font-weight:600;color:var(--text);cursor:pointer}.chat-header .chat-title:hover{color:var(--accent)}
+.chat-header .chat-title{font-size:13px;font-weight:600;color:var(--text);cursor:pointer}.chat-actions{display:flex;gap:4px;margin-left:8px}.chat-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:12px;transition:all .12s}.chat-btn:hover{border-color:rgba(167,139,250,.3);color:var(--text)}.search-bar{display:none;padding:8px 16px;border-bottom:1px solid var(--border)}.search-bar input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font:inherit;font-size:12px;outline:none}.search-bar input:focus{border-color:rgba(167,139,250,.3)}.highlight{background:rgba(251,191,36,.2);padding:0 2px;border-radius:2px}.chat-header .chat-title:hover{color:var(--accent)}
 .chat-header select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--text);font:inherit;font-size:10px;outline:none;cursor:pointer;margin-left:auto}
 .chat-header select:focus{border-color:rgba(167,139,250,.3)}
 .messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
@@ -70,12 +70,18 @@ body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-s
   <div class="main" id="main">
     <div class="chat-header" id="chat-header">
       <span class="chat-title" id="chat-title-display" onclick="renameChat()" title="Click to rename"></span>
+      <div class="chat-actions">
+        <button class="chat-btn" onclick="toggleSearch()" title="Search">🔍</button>
+        <button class="chat-btn" onclick="exportChat()" title="Export">📥</button>
+        <button class="chat-btn" onclick="clearChat()" title="Clear">🗑</button>
+      </div>
       <div class="model-picker" id="model-picker" onclick="toggleModelDropdown()">
         <span id="model-label">DeepSeek V4 Pro</span>
         <span class="arrow">▾</span>
       </div>
       <div class="model-dropdown" id="model-dropdown" style="display:none"></div>
     </div>
+    <div class="search-bar" id="search-bar"><input type="text" id="search-input" placeholder="Search messages..." oninput="searchMessages()"></div>
     <div class="empty" id="empty-state">
       <h2>Hermes Chat</h2>
       <p>Starte einen neuen Chat oder wähle links einen aus</p>
@@ -228,7 +234,37 @@ document.addEventListener('click',function(e){
     document.getElementById('model-dropdown').style.display='none';
 });
 
-loadModels();loadChats();setInterval(loadChats,30000);
+loadModels();let allMessages=[];
+
+async function searchMessages(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  const msgs=document.getElementById('messages').children;
+  for(let m of msgs){
+    if(!q){m.style.opacity='1';m.querySelector('.highlight')?.replaceWith?.(m.textContent);continue}
+    if(m.textContent.toLowerCase().includes(q)){m.style.opacity='1';m.querySelector('.content').innerHTML=formatContent(m.querySelector('.content').textContent).replace(new RegExp('('+q+')','gi'),'<span class="highlight">$1</span>')}
+    else m.style.opacity='0.2';
+  }
+}
+function toggleSearch(){
+  const el=document.getElementById('search-bar');el.style.display=el.style.display==='none'?'':'none';
+  if(el.style.display!=='none')document.getElementById('search-input').focus();
+}
+function exportChat(){
+  if(!allMessages.length)return;
+  const text=allMessages.map(m=>`[${m.role.toUpperCase()}] ${m.time}\n${m.content}\n`).join('\n');
+  const blob=new Blob([text],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hermes-chat-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+}
+function clearChat(){
+  if(!confirm('Chatverlauf löschen?'))return;
+  document.getElementById('messages').innerHTML='';allMessages=[];
+}
+
+// Store messages for export
+const _origRender=renderMessages;renderMessages=function(msgs){allMessages=msgs||[];_origRender(msgs)}
+
+loadChats();setInterval(loadChats,30000);
 </script>
 </body>
 </html>
