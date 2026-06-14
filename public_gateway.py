@@ -96,6 +96,24 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
         if path == "/health":
             return self._send_json({"status": "ok", "service": "hermes-public-gw", "port": PORT})
         
+        # OpenAI-compatible /v1/models
+        if path == "/v1/models":
+            models = [
+                {"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"DeepSeek"},
+                {"id":"deepseek-v4-flash","name":"DeepSeek V4 Flash","provider":"DeepSeek"},
+                {"id":"deepseek/deepseek-chat","name":"DeepSeek V3 (OpenRouter)","provider":"OpenRouter"},
+                {"id":"anthropic/claude-sonnet-4","name":"Claude Sonnet 4","provider":"OpenRouter"},
+                {"id":"openai/gpt-4o","name":"GPT-4o","provider":"OpenRouter"},
+                {"id":"openai/gpt-4o-mini","name":"GPT-4o Mini","provider":"OpenRouter"},
+                {"id":"google/gemini-2.5-pro","name":"Gemini 2.5 Pro","provider":"OpenRouter"},
+                {"id":"google/gemini-2.5-flash","name":"Gemini 2.5 Flash","provider":"OpenRouter"},
+                {"id":"meta-llama/llama-4-maverick","name":"Llama 4 Maverick","provider":"OpenRouter"},
+                {"id":"mistral/mistral-large","name":"Mistral Large","provider":"OpenRouter"},
+                {"id":"microsoft/phi-4","name":"Phi-4","provider":"OpenRouter"},
+            ]
+            data = [{"id":m["id"],"object":"model","owned_by":m["provider"]} for m in models]
+            return self._send_json({"object":"list","data":data})
+        
         # Models list — no auth (public)
         if path == "/api/models":
             # Comprehensive model list from Hermes + OpenRouter
