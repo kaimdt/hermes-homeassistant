@@ -98,28 +98,20 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
         
         # Models list — no auth (public)
         if path == "/api/models":
-            # Proxy from Hermes API server
-            try:
-                import os
-                api_key = os.environ.get("API_SERVER_KEY","")
-                req = urllib.request.Request(f"{API_SERVER}/v1/models")
-                if api_key:
-                    req.add_header("Authorization", "Bearer " + api_key)
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read())
-                    models = []
-                    raw_models = data.get("data", data.get("models", []))
-                    for m in raw_models:
-                        mid = m.get("id","")
-                        models.append({"id": mid, "name": mid, "provider": m.get("owned_by","")})
-                    if not models:
-                        # Fallback: try dashboard
-                        req2 = urllib.request.Request(f"{DASHBOARD}/api/plugins/github-bot/models")
-                        with urllib.request.urlopen(req2, timeout=10) as resp2:
-                            data2 = json.loads(resp2.read())
-                            models = data2.get("models", data2.get("data", []))
-            except Exception as e:
-                models = [{"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"deepseek"}]
+            # Comprehensive model list from Hermes + OpenRouter
+            models = [
+                {"id":"deepseek-v4-pro","name":"DeepSeek V4 Pro","provider":"DeepSeek"},
+                {"id":"deepseek-v4-flash","name":"DeepSeek V4 Flash","provider":"DeepSeek"},
+                {"id":"deepseek/deepseek-chat","name":"DeepSeek V3 (OpenRouter)","provider":"OpenRouter"},
+                {"id":"anthropic/claude-sonnet-4","name":"Claude Sonnet 4","provider":"OpenRouter"},
+                {"id":"openai/gpt-4o","name":"GPT-4o","provider":"OpenRouter"},
+                {"id":"openai/gpt-4o-mini","name":"GPT-4o Mini","provider":"OpenRouter"},
+                {"id":"google/gemini-2.5-pro","name":"Gemini 2.5 Pro","provider":"OpenRouter"},
+                {"id":"google/gemini-2.5-flash","name":"Gemini 2.5 Flash","provider":"OpenRouter"},
+                {"id":"meta-llama/llama-4-maverick","name":"Llama 4 Maverick","provider":"OpenRouter"},
+                {"id":"mistral/mistral-large","name":"Mistral Large","provider":"OpenRouter"},
+                {"id":"microsoft/phi-4","name":"Phi-4","provider":"OpenRouter"},
+            ]
             return self._send_json({"models": models})
         
         # Chat HTML
