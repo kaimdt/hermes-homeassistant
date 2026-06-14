@@ -44,6 +44,7 @@ body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-s
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .layout{flex:1;display:flex;overflow:hidden}
 .delete-btn{float:right;font-size:14px;color:var(--red);cursor:pointer;opacity:.3;background:none;border:none;padding:2px}.delete-btn:hover{opacity:1}
+.tabs{display:flex;gap:2px;margin-left:auto;background:rgba(255,230,203,.03);border-radius:6px;padding:2px}.tab{padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--text2);border-radius:4px;transition:all .12s}.tab.active{background:rgba(255,230,203,.06);color:var(--text)}.tab:hover{color:var(--text)}
 @media(max-width:600px){.chats-panel{display:none}.chats-panel.mobile-open{display:flex;position:absolute;inset:0;z-index:100;background:var(--bg)}}
 </style>
 </head>
@@ -51,6 +52,10 @@ body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-s
 <div class="header">
   <div class="logo">Hermes Chat</div>
   <div class="sub">Persistent · Multi-Chat · HA Connected</div>
+  <div class="tabs">
+    <span class="tab active" onclick="showTab('chat')">Chat</span>
+    <span class="tab" onclick="showTab('dashboard')">Dashboard</span>
+  </div>
 </div>
 <div class="layout">
   <div class="chats-panel" id="chats-panel">
@@ -58,6 +63,10 @@ body{background:var(--bg);color:var(--text);font:13px/1.5 Inter,system-ui,sans-s
     <div class="chats-list" id="chats-list"></div>
   </div>
   <div class="main" id="main">
+    <div class="dashboard" id="dashboard" style="display:none;flex:1;overflow-y:auto;padding:16px">
+      <div id="dash-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px"></div>
+      <div style="text-align:center;color:var(--text3);font-size:10px;margin-top:12px" id="dash-time"></div>
+    </div>
     <div class="empty" id="empty-state">
       <h2>Hermes Chat</h2>
       <p>Starte einen neuen Chat oder wähle links einen aus</p>
@@ -169,6 +178,44 @@ async function deleteChat(id) {
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Dashboard
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(tab)));
+  document.getElementById('chats-panel').style.display = tab==='chat' ? '' : 'none';
+  document.getElementById('messages').style.display = tab==='chat' ? 'flex' : 'none';
+  document.getElementById('input-area').style.display = tab==='chat' ? 'flex' : 'none';
+  document.getElementById('empty-state').style.display = tab==='chat' ? 'flex' : 'none';
+  document.getElementById('dashboard').style.display = tab==='dashboard' ? '' : 'none';
+  if (tab==='dashboard') loadDashboard();
+}
+async function loadDashboard() {
+  try {
+    const r = await fetch(BP.replace('/ha/chat','').replace('/api/hermes-chat','') + '/system/status');
+    const d = await r.json();
+    const el = document.getElementById('dash-content');
+    const cards = [
+      ['Gateway', d.gateway_running?'Running':'Down', d.gateway_running?'#4ade80':'#ef4444', 'PID '+d.gateway_pid],
+      ['Webhook', d.webhook_active?'Active':'Inactive', d.webhook_active?'#4ade80':'#ef4444', d.webhook_events],
+      ['PostgreSQL', d.pg_status, d.pg_status==='connected'?'#4ade80':'#ef4444', d.pg_memories+' mem · '+d.pg_knowledge+' kb'],
+      ['CPU', d.cpu_usage||'?', null, 'Load: '+d.load_1m],
+      ['RAM', d.ram_usage||'?', null, d.ram_free+' / '+d.ram_total],
+      ['Disk', d.disk_usage||'?', null, d.system_uptime||'?'],
+      ['Sessions', d.active_sessions||'0', '#a78bfa', 'Total: '+d.total_sessions],
+      ['Plugins', d.plugin_count||'0', '#4ade80', (d.plugin_list||[]).slice(0,3).join(', ')],
+      ['Issues', d.issues?.length||'0', (d.issues||[]).length>0?'#ef4444':'#4ade80', (d.issues||[])[0]?.msg||'All good'],
+    ];
+    el.innerHTML = cards.map(([title,val,color,sub]) => `
+      <div style="padding:14px;border:1px solid rgba(255,230,203,.06);border-radius:8px;background:rgba(255,230,203,.01)">
+        <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px">${title}</div>
+        <div style="font-size:22px;font-weight:700;color:${color||'var(--text)'};margin-bottom:2px">${val}</div>
+        <div style="font-size:9px;color:var(--text3);line-height:1.3">${sub}</div>
+      </div>
+    `).join('');
+    document.getElementById('dash-time').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  } catch(e) { document.getElementById('dash-content').innerHTML = '<div style="color:var(--red);padding:20px">Dashboard unavailable</div>'; }
+}
+setInterval(function(){if(document.getElementById('dashboard').style.display!=='none')loadDashboard()}, 30000);
 
 // Initialize
 loadChats();
