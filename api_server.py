@@ -43,13 +43,17 @@ log = logging.getLogger("hermes-api")
 # ── Models ───────────────────────────────────────────────
 
 def get_models():
-    """Alle verfügbaren Modelle."""
-    models = [{"id":"hermes-agent","object":"model","owned_by":"hermes"}]
+    """Dynamisch aus Hermes Config + .env — echte hinterlegte Modelle."""
+    models = []
+    
+    # DeepSeek (wenn Key vorhanden)
     if ENV.get("DEEPSEEK_API_KEY"):
         models += [
             {"id":"deepseek-v4-pro","object":"model","owned_by":"deepseek"},
             {"id":"deepseek-v4-flash","object":"model","owned_by":"deepseek"},
         ]
+    
+    # OpenRouter (200+ Modelle via gleichen Key)
     if ENV.get("OPENROUTER_API_KEY"):
         models += [
             {"id":"deepseek/deepseek-chat","object":"model","owned_by":"openrouter"},
@@ -58,7 +62,19 @@ def get_models():
             {"id":"openai/gpt-4o-mini","object":"model","owned_by":"openrouter"},
             {"id":"google/gemini-2.5-pro","object":"model","owned_by":"openrouter"},
             {"id":"google/gemini-2.5-flash","object":"model","owned_by":"openrouter"},
+            {"id":"meta-llama/llama-4-maverick","object":"model","owned_by":"openrouter"},
+            {"id":"mistral/mistral-large","object":"model","owned_by":"openrouter"},
+            {"id":"microsoft/phi-4","object":"model","owned_by":"openrouter"},
         ]
+    
+    # NVIDIA (wenn Key vorhanden)
+    if ENV.get("NVIDIA_API_KEY"):
+        models.append({"id":"nvidia/nemotron","object":"model","owned_by":"nvidia"})
+    
+    # Hermes default
+    if not models:
+        models = [{"id":"hermes-agent","object":"model","owned_by":"hermes"}]
+    
     return models
 
 
@@ -68,6 +84,8 @@ def resolve_provider(model):
         return "https://api.deepseek.com/v1/chat/completions", ENV.get("DEEPSEEK_API_KEY","")
     if "/" in model:
         return "https://openrouter.ai/api/v1/chat/completions", ENV.get("OPENROUTER_API_KEY","")
+    if model.startswith("nvidia"):
+        return "https://integrate.api.nvidia.com/v1/chat/completions", ENV.get("NVIDIA_API_KEY","")
     return "http://127.0.0.1:8642/v1/chat/completions", ENV.get("API_SERVER_KEY","")
 
 
