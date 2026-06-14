@@ -63,12 +63,16 @@ class GatewayHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode() if isinstance(html, str) else html)
     
-    def _proxy(self, target_url: str):
+    def _proxy(self, target_url: str, data: str = None, method: str = "GET"):
         """Proxy request to internal service."""
         try:
-            req = urllib.request.Request(target_url)
+            if data is not None and method == "POST":
+                req = urllib.request.Request(target_url, data=data.encode(), method="POST")
+                req.add_header("Content-Type", "application/json")
+            else:
+                req = urllib.request.Request(target_url)
             for header, value in self.headers.items():
-                if header.lower() not in ("host", "x-api-key"):
+                if header.lower() not in ("host", "x-api-key", "content-type", "content-length"):
                     req.add_header(header, value)
             with urllib.request.urlopen(req, timeout=30) as resp:
                 body = resp.read()
@@ -194,7 +198,7 @@ document.getElementById('time').textContent='Updated: '+new Date().toLocaleTimeS
         
         # OpenAI-compatible /v1/chat/completions
         if self.path == "/v1/chat/completions":
-            return self._proxy(f"{API_SERVER}/v1/chat/completions", body.decode(), "POST")
+            return self._proxy(f"{API_SERVER}/v1/chat/completions", body.decode("utf-8"), "POST")
         
         if self.path.startswith("/api/chat/") or self.path.startswith("/api/status"):
             if not self._require_key():
