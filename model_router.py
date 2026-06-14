@@ -80,20 +80,23 @@ class RouterHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_GET(self):
-        if self.path == "/v1/models":
+        if self.path in ("/v1/models", "/models"):
             data = get_models()
             self.send_response(200)
             self._cors()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(data).encode())
-            logger.info("GET /v1/models → %d models", len(data["data"]))
+            logger.info("GET %s → %d models", self.path, len(data["data"]))
+        elif self.path == "/health":
+            self.send_response(200); self._cors(); self.end_headers()
+            self.wfile.write(b'{"status":"ok"}')
         else:
             self.send_response(404); self._cors(); self.end_headers()
             self.wfile.write(b"not found")
     
     def do_POST(self):
-        if self.path != "/v1/chat/completions":
+        if self.path not in ("/v1/chat/completions", "/chat/completions"):
             self.send_response(404); self._cors(); self.end_headers()
             return
         
